@@ -35,8 +35,9 @@ module.exports.importRealms = function(callback){
 
 };
 
-module.exports.getRealms = function(region,callback){
-    realmModel.get(region,function(error,realms){
+module.exports.getRealms = function(realmFilters,callback){
+
+    realmModel.get(realmFilters,function(error,realms){
         callback(error,realms);
     });
 };
