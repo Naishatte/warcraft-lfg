@@ -115,7 +115,7 @@
         $scope.filters.raids_per_week.min = 1;
         $scope.filters.raids_per_week.max = 7;
         $scope.filters.days = [];
-        $scope.filters.zones = {id:[],realms:[]};
+        $scope.filters.zones = {id:[],realms:[],region:null};
 
         $scope.languages = [];
         $scope.timezones = TIMEZONES;
@@ -271,7 +271,10 @@
 
         if($stateParams.zones && $stateParams.zones_realms) {
             $scope.filters.zones.id = $stateParams.zones.split('__');
-            $scope.filters.zones.realms = $stateParams.zones_realms.split('__');
+             angular.forEach($stateParams.zones_realms.split('__'),function(value){
+                $scope.filters.zones.realms.push({name:value});
+            });
+
 
         }
 
@@ -411,8 +414,13 @@
                 $stateParams.connected_realms = null;
             }
 
+            if($scope.filters.zones.region)
+                $stateParams.region = $scope.filters.zones.region;
             $stateParams.zones = $scope.filters.zones.id.join('__');
-            $stateParams.zones_realms =$scope.filters.zones.realms.join('__');
+
+            $stateParams.zones_realms =$scope.filters.zones.realms.map(function(elem){
+                return elem.name;
+            }).join('__');
 
             $state.go($state.current,$stateParams,{reload:true});
 
@@ -421,21 +429,19 @@
 
 
 
-        var realmFilters= {region:[],locale:[],timezone:[]};
+        var region= null;
         if($scope.filters.region)
-            realmFilters.region = [$scope.filters.region];
+            region = [$scope.filters.region];
         if($scope.filters.zones.id.length > 0) {
-
+            region =[];
             angular.forEach($scope.filters.zones.id,function(id){
                 var param = id.split('--');
-                realmFilters.region.push(param[0]);
-                realmFilters.locale.push(param[1]);
-                realmFilters.timezone.push(decodeURIComponent(param[2]));
+                region.push(param[0]);
             });
 
         }
 
-        socket.emit('get:realms',realmFilters);
+        socket.emit('get:realms',region);
         socket.emit('get:guildAds',$scope.filters);
 
 
@@ -447,6 +453,7 @@
         $scope.setZone = function(data){
             $scope.filters.zones.id.push(data.id);
             $scope.filters.zones.realms = $scope.filters.zones.realms.concat(data.realms);
+            $scope.filters.zones.region = data.region;
         };
 
         $scope.resetRealm = function(){
@@ -468,6 +475,7 @@
             $scope.filters.zones = {};
             $scope.filters.zones.id = [];
             $scope.filters.zones.realms = [];
+            $scope.filters.zones.region = null;
         };
 
         $scope.resetFilters = function(){
@@ -495,6 +503,7 @@
         $scope.$on('socket:get:realms',function(ev,realms){
 
             var zonesObj = {};
+            var tmpRealms = [];
             $scope.zones = [];
             $scope.connected_realms = {};
             //Beurk !!!
@@ -507,18 +516,32 @@
                 realm.connected_realms = realm.bnet.connected_realms;
 
                 if(zonesObj[realm.region+"--"+realm.bnet.locale+"--"+realm.bnet.timezone])
-                    zonesObj[realm.region+"--"+realm.bnet.locale+"--"+realm.bnet.timezone].push(realm.name);
-                else
-                    zonesObj[realm.region +"--"+realm.bnet.locale +"--"+ realm.bnet.timezone] = [realm.name];
+                    zonesObj[realm.region+"--"+realm.bnet.locale+"--"+realm.bnet.timezone].realms.push(realm);
+                else {
+                    zonesObj[realm.region + "--" + realm.bnet.locale + "--" + realm.bnet.timezone] = {};
+                    zonesObj[realm.region + "--" + realm.bnet.locale + "--" + realm.bnet.timezone].realms = [realm];
+                    zonesObj[realm.region + "--" + realm.bnet.locale + "--" + realm.bnet.timezone].region = realm.region;
+                }
+
+
+
 
                 if($stateParams.realm_name && $stateParams.realm_name == realm.name &&  $stateParams.realm_region && $stateParams.realm_region==realm.region && $stateParams.connected_realms ) {
                     realm.selected = true;
                     $scope.filters.realm.region = $stateParams.realm_region;
                     $scope.filters.realm.name = $stateParams.realm_name;
                     $scope.filters.realm.connected_realms = $stateParams.connected_realms.split("__");
+                    if($stateParams.zones){
+
+                    }
                 }
+
+
+
+
+
             });
-            $scope.realms = realms;
+            $scope.realms = tmpRealms;
 
             var zones  = [];
             angular.forEach(zonesObj, function(value, key) {
@@ -527,7 +550,7 @@
                     var zonesId = $stateParams.zones.split('__');
                     selected = zonesId.indexOf(encodeURIComponent(key))!=-1;
                 }
-                zones.push({id:key, realms:value, label:$translate.instant(key.toUpperCase()),selected:selected});
+                zones.push({id:key, realms:value.realms, region:value.region, label:$translate.instant(key.toUpperCase()),selected:selected});
             });
             zones =  $filter('orderBy')(zones, 'id');
             $scope.zones = zones;

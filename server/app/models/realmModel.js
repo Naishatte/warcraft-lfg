@@ -37,17 +37,12 @@ module.exports.insertOrUpdateBnet = function (region,name,bnet,callback) {
     });
 };
 
-module.exports.get = function(realmFilters, callback){
+module.exports.get = function(region, callback){
     var criteria = {};
-    if (realmFilters.region && realmFilters.region.length > 0){
-        criteria.region = {'$in':realmFilters.region}
+    if (region){
+        criteria.region = {'$in':region}
     }
-    if (realmFilters.locale && realmFilters.locale.length > 0){
-        criteria['bnet.locale'] = {'$in':realmFilters.locale}
-    }
-    if (realmFilters.timezone && realmFilters.timezone.length > 0){
-        criteria['bnet.timezone'] = {'$in':realmFilters.timezone}
-    }
+
     console.log(criteria);
     var database = applicationStorage.getMongoDatabase();
     database.find("realms",criteria, {name:1,region:1,"bnet.connected_realms":1,"bnet.locale":1,"bnet.timezone":1}, -1,{name:1,region:1}, function(error,result){
